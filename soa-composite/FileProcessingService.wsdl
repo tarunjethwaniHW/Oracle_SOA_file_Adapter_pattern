@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions name="FileProcessingService"
+                  targetNamespace="http://test.com/soa/fileprocessing"
+                  xmlns:tns="http://test.com/soa/fileprocessing"
+                  xmlns:types="http://test.com/soa/types"
+                  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+                  xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+                  xmlns:plt="http://schemas.xmlsoap.org/ws/2003/05/partner-link/">
+
+    <!-- ================================================================== -->
+    <!-- WSDL for SOAP API Entry Point                                      -->
+    <!-- This is the client-facing service that exposes file processing     -->
+    <!-- Chain: Java Client -> WSDL -> SOA_SERVICE -> SOA_COMPONENT -> BPEL -->
+    <!-- ================================================================== -->
+
+    <wsdl:types>
+        <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+            <xsd:import namespace="http://test.com/soa/types" schemaLocation="xsd/FileTypes.xsd"/>
+        </xsd:schema>
+    </wsdl:types>
+
+    <wsdl:message name="ProcessFileRequestMessage">
+        <wsdl:part name="payload" element="types:ProcessFileRequest"/>
+    </wsdl:message>
+
+    <wsdl:message name="ProcessFileResponseMessage">
+        <wsdl:part name="payload" element="types:ProcessFileResponse"/>
+    </wsdl:message>
+
+    <wsdl:message name="FileProcessingFaultMessage">
+        <wsdl:part name="fault" element="types:FileProcessingFault"/>
+    </wsdl:message>
+
+    <wsdl:portType name="FileProcessingPortType">
+        <wsdl:operation name="processFile">
+            <wsdl:input message="tns:ProcessFileRequestMessage"/>
+            <wsdl:output message="tns:ProcessFileResponseMessage"/>
+            <wsdl:fault name="processingFault" message="tns:FileProcessingFaultMessage"/>
+        </wsdl:operation>
+    </wsdl:portType>
+
+    <wsdl:binding name="FileProcessingBinding" type="tns:FileProcessingPortType">
+        <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+        <wsdl:operation name="processFile">
+            <soap:operation soapAction="processFile"/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+            <wsdl:fault name="processingFault">
+                <soap:fault name="processingFault" use="literal"/>
+            </wsdl:fault>
+        </wsdl:operation>
+    </wsdl:binding>
+
+    <wsdl:service name="fileprocessing_client_ep">
+        <wsdl:port name="FileProcessingPort" binding="tns:FileProcessingBinding">
+            <soap:address location="http://localhost:8090/soap/FileProcessingService"/>
+        </wsdl:port>
+    </wsdl:service>
+
+    <plt:partnerLinkType name="FileProcessingPLT">
+        <plt:role name="FileProcessingProvider" portType="tns:FileProcessingPortType"/>
+    </plt:partnerLinkType>
+
+</wsdl:definitions>

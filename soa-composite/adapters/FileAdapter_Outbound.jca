@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<adapter-config name="FileAdapterOutbound"
+                adapter="file"
+                wsdlLocation="FileAdapter_Outbound.wsdl"
+                xmlns="http://platform.integration.oracle/blocks/adapter/fw/metadata">
+
+    <!-- ================================================================== -->
+    <!-- File Adapter - Outbound Configuration                              -->
+    <!-- TEST PROJECT: Writes processed files to /data/outgoing             -->
+    <!-- Called by FileProcessingProcess BPEL after processing              -->
+    <!-- ================================================================== -->
+
+    <connection-factory location="eis/FileAdapter"
+                        UIConnectionName="FileAdapter"
+                        adapterRef=""/>
+
+    <endpoint-interaction portType="Write_ptt" operation="Write">
+        <interaction-spec className="oracle.tip.adapter.file.outbound.FileInteractionSpec">
+            <!-- Physical directory for output -->
+            <property name="PhysicalDirectory" value="/data/outgoing"/>
+
+            <!-- Logical directory (can be overridden at deployment) -->
+            <property name="LogicalDirectory" value="outgoing-files"/>
+
+            <!-- File naming convention: prefix_sequence_timestamp.extension -->
+            <property name="FileNamingConvention" value="OUT_%SEQ%_%yyMMdd_HHmmss%.xml"/>
+
+            <!-- Number of digits in sequence number -->
+            <property name="NumberMessages" value="1000000"/>
+
+            <!-- Append to existing file (false = create new) -->
+            <property name="Append" value="false"/>
+
+            <!-- File encoding -->
+            <property name="Encoding" value="UTF-8"/>
+
+            <!-- Concurrent writing disabled -->
+            <property name="ConcurrentWriteEnabled" value="false"/>
+        </interaction-spec>
+    </endpoint-interaction>
+
+</adapter-config>

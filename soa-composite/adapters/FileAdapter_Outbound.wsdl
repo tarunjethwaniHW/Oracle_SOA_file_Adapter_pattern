@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions name="FileAdapterOutbound"
+                  targetNamespace="http://test.com/soa/adapter/file"
+                  xmlns:tns="http://test.com/soa/adapter/file"
+                  xmlns:types="http://test.com/soa/types"
+                  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+                  xmlns:plt="http://schemas.xmlsoap.org/ws/2003/05/partner-link/">
+
+    <wsdl:types>
+        <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+            <xsd:import namespace="http://test.com/soa/types" schemaLocation="../xsd/FileTypes.xsd"/>
+        </xsd:schema>
+    </wsdl:types>
+
+    <wsdl:message name="FileWriteMessage">
+        <wsdl:part name="payload" element="types:FileContent"/>
+    </wsdl:message>
+
+    <wsdl:portType name="Write_ptt">
+        <wsdl:operation name="Write">
+            <wsdl:input message="tns:FileWriteMessage"/>
+        </wsdl:operation>
+    </wsdl:portType>
+
+    <plt:partnerLinkType name="FileAdapterPLT">
+        <plt:role name="FileWriter" portType="tns:Write_ptt"/>
+    </plt:partnerLinkType>
+
+</wsdl:definitions>

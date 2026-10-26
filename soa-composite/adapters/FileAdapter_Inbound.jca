@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<adapter-config name="FileAdapterInbound"
+                adapter="file"
+                wsdlLocation="FileAdapter_Inbound.wsdl"
+                xmlns="http://platform.integration.oracle/blocks/adapter/fw/metadata">
+
+    <!-- ================================================================== -->
+    <!-- File Adapter - Inbound Configuration                               -->
+    <!-- TEST PROJECT: Polls /data/incoming directory for new files         -->
+    <!-- Triggers FileProcessingProcess BPEL when files arrive              -->
+    <!-- ================================================================== -->
+
+    <connection-factory location="eis/FileAdapter"
+                        UIConnectionName="FileAdapter"
+                        adapterRef=""/>
+
+    <endpoint-activation portType="Read_ptt" operation="Read">
+        <activation-spec className="oracle.tip.adapter.file.inbound.FileActivationSpec">
+            <!-- Physical directory to poll for incoming files -->
+            <property name="PhysicalDirectory" value="/data/incoming"/>
+
+            <!-- Logical directory (can be overridden at deployment) -->
+            <property name="LogicalDirectory" value="incoming-files"/>
+
+            <!-- File patterns to include (XML and CSV files) -->
+            <property name="IncludeFiles" value=".*\.(xml|XML|csv|CSV|json|JSON)"/>
+
+            <!-- Exclude temporary files -->
+            <property name="ExcludeFiles" value=".*\.tmp|.*\.temp|\..*"/>
+
+            <!-- Polling frequency in seconds -->
+            <property name="PollingFrequency" value="15"/>
+
+            <!-- Minimum file age (seconds) to ensure file is fully written -->
+            <property name="MinimumAge" value="3"/>
+
+            <!-- Do not delete file after reading (move to archive) -->
+            <property name="DeleteFile" value="false"/>
+
+            <!-- Archive processed files -->
+            <property name="PhysicalArchiveDirectory" value="/data/archive"/>
+            <property name="LogicalArchiveDirectory" value="archived-files"/>
+
+            <!-- Use file timestamps for ordering -->
+            <property name="UseFileOrderingByArrival" value="true"/>
+
+            <!-- Single threaded processing -->
+            <property name="SingleThreadModel" value="true"/>
+
+            <!-- Recursive directory scanning disabled -->
+            <property name="Recursive" value="false"/>
+
+            <!-- Maximum number of files to process per poll -->
+            <property name="MaxRaiseSize" value="5"/>
+        </activation-spec>
+    </endpoint-activation>
+
+</adapter-config>

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            targetNamespace="http://test.com/soa/types"
+            xmlns:tns="http://test.com/soa/types"
+            elementFormDefault="qualified">
+
+    <!-- File content wrapper for File Adapter -->
+    <xsd:element name="FileContent" type="tns:FileContentType"/>
+
+    <xsd:complexType name="FileContentType">
+        <xsd:sequence>
+            <xsd:element name="fileName" type="xsd:string"/>
+            <xsd:element name="filePath" type="xsd:string"/>
+            <xsd:element name="fileSize" type="xsd:long" minOccurs="0"/>
+            <xsd:element name="mimeType" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="content" type="xsd:base64Binary" minOccurs="0"/>
+            <xsd:element name="textContent" type="xsd:string" minOccurs="0"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <!-- Request for SOAP API entry point -->
+    <xsd:element name="ProcessFileRequest" type="tns:ProcessFileRequestType"/>
+
+    <xsd:complexType name="ProcessFileRequestType">
+        <xsd:sequence>
+            <xsd:element name="requestId" type="xsd:string"/>
+            <xsd:element name="fileName" type="xsd:string"/>
+            <xsd:element name="fileContent" type="xsd:base64Binary" minOccurs="0"/>
+            <xsd:element name="processingType" type="tns:ProcessingTypeEnum"/>
+            <xsd:element name="metadata" type="tns:MetadataType" minOccurs="0"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <!-- Response from BPEL process -->
+    <xsd:element name="ProcessFileResponse" type="tns:ProcessFileResponseType"/>
+
+    <xsd:complexType name="ProcessFileResponseType">
+        <xsd:sequence>
+            <xsd:element name="requestId" type="xsd:string"/>
+            <xsd:element name="status" type="tns:StatusEnum"/>
+            <xsd:element name="outputFilePath" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="processingDetails" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="timestamp" type="xsd:dateTime"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <!-- Processing type enumeration -->
+    <xsd:simpleType name="ProcessingTypeEnum">
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="TRANSFORM"/>
+            <xsd:enumeration value="VALIDATE"/>
+            <xsd:enumeration value="ARCHIVE"/>
+            <xsd:enumeration value="FORWARD"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+
+    <!-- Status enumeration -->
+    <xsd:simpleType name="StatusEnum">
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="SUCCESS"/>
+            <xsd:enumeration value="FAILED"/>
+            <xsd:enumeration value="PENDING"/>
+            <xsd:enumeration value="PROCESSING"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+
+    <!-- Metadata for file processing -->
+    <xsd:complexType name="MetadataType">
+        <xsd:sequence>
+            <xsd:element name="sourceSystem" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="priority" type="xsd:int" minOccurs="0"/>
+            <xsd:element name="correlationId" type="xsd:string" minOccurs="0"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <!-- Fault for error scenarios -->
+    <xsd:element name="FileProcessingFault" type="tns:FileProcessingFaultType"/>
+
+    <xsd:complexType name="FileProcessingFaultType">
+        <xsd:sequence>
+            <xsd:element name="errorCode" type="xsd:string"/>
+            <xsd:element name="errorMessage" type="xsd:string"/>
+            <xsd:element name="errorDetails" type="xsd:string" minOccurs="0"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+</xsd:schema>

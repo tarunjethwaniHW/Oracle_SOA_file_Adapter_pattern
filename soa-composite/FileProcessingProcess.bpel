@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<process name="FileProcessingProcess"
+         targetNamespace="http://test.com/soa/fileprocessing/bpel"
+         xmlns="http://docs.oasis-open.org/wsbpel/2.0/process/executable"
+         xmlns:bpws="http://docs.oasis-open.org/wsbpel/2.0/process/executable"
+         xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+         xmlns:bpelx="http://schemas.oracle.com/bpel/extension"
+         xmlns:ora="http://schemas.oracle.com/xpath/extension"
+         xmlns:tns="http://test.com/soa/fileprocessing/bpel"
+         xmlns:fileproc="http://test.com/soa/fileprocessing"
+         xmlns:types="http://test.com/soa/types"
+         xmlns:file="http://test.com/soa/adapter/file">
+
+    <!-- ================================================================== -->
+    <!-- BPEL Process: FileProcessingProcess                                -->
+    <!-- Receives files from two entry points:                              -->
+    <!-- 1. SOAP API (FileProcessingClient partner link)                    -->
+    <!-- 2. File Adapter Inbound (FileAdapterInbound partner link)          -->
+    <!-- Writes processed files via File Adapter Outbound                   -->
+    <!-- ================================================================== -->
+
+    <!-- ================================================================== -->
+    <!-- Partner Links                                                      -->
+    <!-- ================================================================== -->
+
+    <partnerLinks>
+        <!-- ENTRY POINT 1: SOAP API Client -->
+        <partnerLink name="FileProcessingClient"
+                     partnerLinkType="fileproc:FileProcessingPLT"
+                     myRole="FileProcessingProvider"/>
+
+        <!-- ENTRY POINT 2: File Adapter Inbound (polls directory) -->
+        <partnerLink name="FileAdapterInbound"
+                     partnerLinkType="file:FileAdapterPLT"
+                     myRole="FileReader"/>
+
+        <!-- OUTBOUND: File Adapter Outbound (writes to directory) -->
+        <partnerLink name="FileAdapterOutbound"
+                     partnerLinkType="file:FileAdapterPLT"
+                     partnerRole="FileWriter"/>
+    </partnerLinks>
+
+    <!-- ================================================================== -->
+    <!-- Variables                                                          -->
+    <!-- ================================================================== -->
+
+    <variables>
+        <!-- SOAP API request/response -->
+        <variable name="soapInputVariable" messageType="fileproc:ProcessFileRequestMessage"/>
+        <variable name="soapOutputVariable" messageType="fileproc:ProcessFileResponseMessage"/>
+
+        <!-- File Adapter variables -->
+        <variable name="fileInputVariable" messageType="file:FileReadMessage"/>
+        <variable name="fileOutputVariable" messageType="file:FileWriteMessage"/>
+
+        <!-- Processing variables -->
+        <variable name="processedContent" type="xsd:string"/>
+        <variable name="requestId" type="xsd:string"/>
+        <variable name="outputFilePath" type="xsd:string"/>
+    </variables>
+
+    <!-- ================================================================== -->
+    <!-- Main Flow - Pick between SOAP API and File Adapter entry           -->
+    <!-- ================================================================== -->
+
+    <pick name="WaitForInput" createInstance="yes">
+
+        <!-- Branch 1: SOAP API Entry Point -->
+        <onMessage partnerLink="FileProcessingClient"
+                   operation="processFile"
+                   variable="soapInputVariable">
+
+            <sequence name="ProcessFromSOAP">
+
+                <!-- Generate request ID -->
+                <assign name="AssignRequestId">
+                    <copy>
+                        <from>$soapInputVariable.payload/types:requestId</from>
+                        <to variable="requestId"/>
+                    </copy>
+                </assign>
+
+                <!-- Log entry point -->
+                <bpelx:exec name="LogSOAPEntry" language="java">
+                    <![CDATA[
+                        String requestId = (String)getVariableData("requestId");
+                        addAuditTrailEntry("[SOAP API Entry] Processing request: " + requestId);
+                    ]]>
+                </bpelx:exec>
+
+                <!-- Transform/Process the content -->
+                <assign name="TransformContent">
+                    <copy>
+                        <from>concat('PROCESSED_FROM_SOAP:', $soapInputVariable.payload/types:fileName)</from>
+                        <to variable="processedContent"/>
+                    </copy>
+                </assign>
+
+                <!-- Prepare output for File Adapter -->
+                <assign name="PrepareFileOutput">
+                    <copy>
+                        <from>concat('/data/outgoing/soap_', $requestId, '.xml')</from>
+                        <to>$fileOutputVariable.payload/types:filePath</to>
+                    </copy>
+                    <copy>
+                        <from>$soapInputVariable.payload/types:fileName</from>
+                        <to>$fileOutputVariable.payload/types:fileName</to>
+                    </copy>
+                    <copy>
+                        <from variable="processedContent"/>
+                        <to>$fileOutputVariable.payload/types:textContent</to>
+                    </copy>
+                </assign>
+
+                <!-- Call File Adapter Outbound to write the file -->
+                <invoke name="WriteProcessedFile"
+                        partnerLink="FileAdapterOutbound"
+                        operation="Write"
+                        inputVariable="fileOutputVariable"/>
+
+                <!-- Prepare SOAP response -->
+                <assign name="PrepareResponse">
+                    <copy>
+                        <from variable="requestId"/>
+                        <to>$soapOutputVariable.payload/types:requestId</to>
+                    </copy>
+                    <copy>
+                        <from>'SUCCESS'</from>
+                        <to>$soapOutputVariable.payload/types:status</to>
+                    </copy>
+                    <copy>
+                        <from>$fileOutputVariable.payload/types:filePath</from>
+                        <to>$soapOutputVariable.payload/types:outputFilePath</to>
+                    </copy>
+                    <copy>
+                        <from>'File processed successfully via SOAP API entry point'</from>
+                        <to>$soapOutputVariable.payload/types:processingDetails</to>
+                    </copy>
+                    <copy>
+                        <from>ora:getCurrentDateTime()</from>
+                        <to>$soapOutputVariable.payload/types:timestamp</to>
+                    </copy>
+                </assign>
+
+                <!-- Reply to SOAP client -->
+                <reply name="ReplyToSOAPClient"
+                       partnerLink="FileProcessingClient"
+                       operation="processFile"
+                       variable="soapOutputVariable"/>
+
+            </sequence>
+        </onMessage>
+
+        <!-- Branch 2: File Adapter Inbound Entry Point -->
+        <onMessage partnerLink="FileAdapterInbound"
+                   operation="Read"
+                   variable="fileInputVariable">
+
+            <sequence name="ProcessFromFileAdapter">
+
+                <!-- Generate request ID for file-based entry -->
+                <assign name="GenerateFileRequestId">
+                    <copy>
+                        <from>ora:generateGUID()</from>
+                        <to variable="requestId"/>
+                    </copy>
+                </assign>
+
+                <!-- Log entry point -->
+                <bpelx:exec name="LogFileAdapterEntry" language="java">
+                    <![CDATA[
+                        String requestId = (String)getVariableData("requestId");
+                        String fileName = (String)getVariableData("fileInputVariable", "payload", "/types:FileContent/types:fileName");
+                        addAuditTrailEntry("[File Adapter Entry] Processing file: " + fileName + " (Request: " + requestId + ")");
+                    ]]>
+                </bpelx:exec>
+
+                <!-- Transform/Process the content -->
+                <assign name="TransformFileContent">
+                    <copy>
+                        <from>concat('PROCESSED_FROM_FILE_ADAPTER:', $fileInputVariable.payload/types:fileName)</from>
+                        <to variable="processedContent"/>
+                    </copy>
+                </assign>
+
+                <!-- Prepare output for File Adapter -->
+                <assign name="PrepareFileAdapterOutput">
+                    <copy>
+                        <from>concat('/data/outgoing/file_', $requestId, '.xml')</from>
+                        <to>$fileOutputVariable.payload/types:filePath</to>
+                    </copy>
+                    <copy>
+                        <from>concat('processed_', $fileInputVariable.payload/types:fileName)</from>
+                        <to>$fileOutputVariable.payload/types:fileName</to>
+                    </copy>
+                    <copy>
+                        <from variable="processedContent"/>
+                        <to>$fileOutputVariable.payload/types:textContent</to>
+                    </copy>
+                </assign>
+
+                <!-- Call File Adapter Outbound to write the file -->
+                <invoke name="WriteProcessedFileFromAdapter"
+                        partnerLink="FileAdapterOutbound"
+                        operation="Write"
+                        inputVariable="fileOutputVariable"/>
+
+                <!-- Log completion (no reply needed for file-triggered process) -->
+                <bpelx:exec name="LogCompletion" language="java">
+                    <![CDATA[
+                        String outputPath = (String)getVariableData("fileOutputVariable", "payload", "/types:FileContent/types:filePath");
+                        addAuditTrailEntry("[File Adapter Entry] Processing complete. Output: " + outputPath);
+                    ]]>
+                </bpelx:exec>
+
+            </sequence>
+        </onMessage>
+
+    </pick>
+
+</process>
